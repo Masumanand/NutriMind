@@ -1,0 +1,53 @@
+version: "3.9"
+
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://nutrimind:nutrimind@postgres:5432/nutrimind
+      - MONGO_URL=mongodb://mongo:27017/nutrimind
+      - REDIS_URL=redis://redis:6379
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - SECRET_KEY=${SECRET_KEY:-supersecretkey}
+    depends_on:
+      - postgres
+      - mongo
+      - redis
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: nutrimind
+      POSTGRES_PASSWORD: nutrimind
+      POSTGRES_DB: nutrimind
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  mongo:
+    image: mongo:7
+    volumes:
+      - mongodata:/data/db
+    ports:
+      - "27017:27017"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  pgdata:
+  mongodata:

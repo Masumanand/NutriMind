@@ -1,0 +1,75 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: nutrimind-backend
+  annotations:
+    run.googleapis.com/ingress: all
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "10"
+        run.googleapis.com/vpc-access-connector: nutrimind-vpc-connector
+        run.googleapis.com/vpc-access-egress: private-ranges-only
+        run.googleapis.com/cpu-throttling: "false"
+    spec:
+      serviceAccountName: nutrimind-backend@PROJECT_ID.iam.gserviceaccount.com
+      containerConcurrency: 80
+      timeoutSeconds: 300
+      containers:
+        - image: gcr.io/PROJECT_ID/nutrimind-backend:latest
+          ports:
+            - containerPort: 8000
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          env:
+            # Injected from Secret Manager
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: nutrimind-openai-key
+                  key: latest
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: nutrimind-secret-key
+                  key: latest
+            # Cloud SQL (via Unix socket through VPC)
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: nutrimind-db-url
+                  key: latest
+            # MongoDB Atlas
+            - name: MONGO_URL
+              valueFrom:
+                secretKeyRef:
+                  name: nutrimind-mongo-url
+                  key: latest
+            # Memorystore Redis (private IP via VPC connector)
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: nutrimind-redis-url
+                  key: latest
+            - name: WEATHER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: nutrimind-weather-key
+                  key: latest
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 10

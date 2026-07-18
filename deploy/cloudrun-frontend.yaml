@@ -1,0 +1,28 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: nutrimind-frontend
+  annotations:
+    run.googleapis.com/ingress: all
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "5"
+    spec:
+      containerConcurrency: 80
+      timeoutSeconds: 60
+      containers:
+        - image: gcr.io/PROJECT_ID/nutrimind-frontend:latest
+          ports:
+            - containerPort: 3000
+          resources:
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          env:
+            - name: NEXT_PUBLIC_API_URL
+              value: https://nutrimind-backend-HASH-uc.a.run.app
+            - name: NODE_ENV
+              value: production

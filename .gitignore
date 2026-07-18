@@ -2,6 +2,10 @@
 __pycache__/
 *.py[codz]
 *$py.class
+*.pyc
+.env
+.git
+node_modules/
 
 # C extensions
 *.so
@@ -216,3 +220,28 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Kiro IDE — never deploy
+.kiro/
+
+# Environment files — never commit secrets
+.env
+backend/.env
+frontend/.env
+*.env.local
+
+# Node
+node_modules/
+frontend/.next/
+frontend/out/
+
+# Python
+*.pyc
+__pycache__/
+.venv/
+dist/
+*.egg-info/
+
+# GCP credentials
+gcp-key.json
+service-account*.json

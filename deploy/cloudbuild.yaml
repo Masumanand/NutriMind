@@ -1,0 +1,102 @@
+steps:
+  # ── Build backend image ──────────────────────────────────────────────────
+  - name: "gcr.io/cloud-builders/docker"
+    id: build-backend
+    args:
+      - build
+      - -t
+      - gcr.io/$PROJECT_ID/nutrimind-backend:$COMMIT_SHA
+      - -t
+      - gcr.io/$PROJECT_ID/nutrimind-backend:latest
+      - ./backend
+
+  # ── Build frontend image ─────────────────────────────────────────────────
+  - name: "gcr.io/cloud-builders/docker"
+    id: build-frontend
+    args:
+      - build
+      - -t
+      - gcr.io/$PROJECT_ID/nutrimind-frontend:$COMMIT_SHA
+      - -t
+      - gcr.io/$PROJECT_ID/nutrimind-frontend:latest
+      - --build-arg
+      - NEXT_PUBLIC_API_URL=https://nutrimind-backend-$_REGION_SUFFIX.a.run.app
+      - ./frontend
+
+  # ── Push backend ─────────────────────────────────────────────────────────
+  - name: "gcr.io/cloud-builders/docker"
+    id: push-backend
+    waitFor: [build-backend]
+    args: [push, gcr.io/$PROJECT_ID/nutrimind-backend:$COMMIT_SHA]
+
+  - name: "gcr.io/cloud-builders/docker"
+    id: push-backend-latest
+    waitFor: [build-backend]
+    args: [push, gcr.io/$PROJECT_ID/nutrimind-backend:latest]
+
+  # ── Push frontend ─────────────────────────────────────────────────────────
+  - name: "gcr.io/cloud-builders/docker"
+    id: push-frontend
+    waitFor: [build-frontend]
+    args: [push, gcr.io/$PROJECT_ID/nutrimind-frontend:$COMMIT_SHA]
+
+  - name: "gcr.io/cloud-builders/docker"
+    id: push-frontend-latest
+    waitFor: [build-frontend]
+    args: [push, gcr.io/$PROJECT_ID/nutrimind-frontend:latest]
+
+  # ── Deploy backend to Cloud Run ───────────────────────────────────────────
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    id: deploy-backend
+    waitFor: [push-backend]
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - nutrimind-backend
+      - --image=gcr.io/$PROJECT_ID/nutrimind-backend:$COMMIT_SHA
+      - --region=$_REGION
+      - --platform=managed
+      - --allow-unauthenticated
+      - --port=8000
+      - --memory=1Gi
+      - --cpu=1
+      - --min-instances=0
+      - --max-instances=10
+      - --set-secrets=OPENAI_API_KEY=nutrimind-openai-key:latest,SECRET_KEY=nutrimind-secret-key:latest
+      - --set-env-vars=DATABASE_URL=$$DATABASE_URL,MONGO_URL=$$MONGO_URL,REDIS_URL=$$REDIS_URL
+      - --vpc-connector=nutrimind-vpc-connector
+      - --service-account=nutrimind-backend@$PROJECT_ID.iam.gserviceaccount.com
+
+  # ── Deploy frontend to Cloud Run ──────────────────────────────────────────
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    id: deploy-frontend
+    waitFor: [push-frontend, deploy-backend]
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - nutrimind-frontend
+      - --image=gcr.io/$PROJECT_ID/nutrimind-frontend:$COMMIT_SHA
+      - --region=$_REGION
+      - --platform=managed
+      - --allow-unauthenticated
+      - --port=3000
+      - --memory=512Mi
+      - --cpu=1
+      - --min-instances=0
+      - --max-instances=5
+
+images:
+  - gcr.io/$PROJECT_ID/nutrimind-backend:$COMMIT_SHA
+  - gcr.io/$PROJECT_ID/nutrimind-backend:latest
+  - gcr.io/$PROJECT_ID/nutrimind-frontend:$COMMIT_SHA
+  - gcr.io/$PROJECT_ID/nutrimind-frontend:latest
+
+substitutions:
+  _REGION: us-central1
+  _REGION_SUFFIX: uc
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
