@@ -228,7 +228,15 @@ __marimo__/
 .env
 backend/.env
 frontend/.env
+frontend/.env.local
 *.env.local
+
+# Database files
+*.db
+*.sqlite3
+
+# Seed scripts with credentials
+backend/seed_demo_user.py
 
 # Node
 node_modules/
