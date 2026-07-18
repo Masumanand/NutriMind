@@ -104,6 +104,3 @@ See `.env.example` in each subdirectory.
 
 ## 📄 License
 MIT
-## login 
-nutrilife@gmail.com
-nutrilife123
